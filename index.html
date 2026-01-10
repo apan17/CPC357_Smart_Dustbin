@@ -181,7 +181,7 @@
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">📈 Live Trends</span>
+        <span class="card-title">📈 Live Fill Trend</span>
       </div>
       <div class="visual-container" style="height: 350px; padding-bottom: 10px;">
         <canvas id="myChart"></canvas>
@@ -218,9 +218,11 @@
     const SUPABASE_URL = "https://dodtdqvntdazpnbmrqwq.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZHRkcXZudGRhenBuYm1ycXdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDU0ODYsImV4cCI6MjA4MzYyMTQ4Nn0.JPgJyEWQWsAZETxTvm-pjYI7cwTBatbSkTVSU7EWOtw"; 
     const GAS_LIMIT = 2000; 
+    
+    // 30 points = 30 minutes of history (1 point per min)
+    const MAX_CHART_POINTS = 30; 
 
     let map, marker, chart;
-    const maxDataPoints = 15;
     let _supabase;
 
     function log(msg) {
@@ -258,25 +260,22 @@
             data: [],
             fill: true,
             tension: 0.4,
-            pointRadius: 2
-          }, {
-            label: 'Gas',
-            borderColor: '#ef4444',
-            data: [],
-            borderDash: [5, 5],
-            tension: 0.4,
-            pointRadius: 0,
-            yAxisID: 'y1'
-          }]
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }] 
+          // REMOVED Gas Dataset
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: { duration: 0 }, 
           plugins: { legend: { labels: { color: '#94a3b8' } } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 5 } },
-            y: { min: 0, max: 100, grid: { color: '#334155' }, ticks: { color: '#64748b' } },
-            y1: { position: 'right', grid: { display: false }, ticks: { display: false } }
+            x: { 
+              grid: { display: false }, 
+              ticks: { color: '#64748b' } 
+            },
+            y: { min: 0, max: 100, grid: { color: '#334155' }, ticks: { color: '#64748b' } }
           }
         }
       });
@@ -290,8 +289,10 @@
 
       function updateDashboard(data) {
         if (!data) return;
-        const timeStr = new Date(data.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateObj = new Date(data.created_at);
+        const timeLabel = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
+        // A. UI UPDATES
         const fillEl = document.getElementById('fill');
         fillEl.innerText = (data.fill_percent || 0) + "%";
         fillEl.className = "metric-value " + (data.fill_percent > 80 ? "text-red" : data.fill_percent > 50 ? "text-yellow" : "text-green");
@@ -314,18 +315,28 @@
           map.panTo(pos);
         }
 
+        // B. CHART LOGIC (Fill Only)
         if (chart) {
-          chart.data.labels.push(timeStr);
-          chart.data.datasets[0].data.push(data.fill_percent);
-          chart.data.datasets[1].data.push(gasRaw);
-          if (chart.data.labels.length > maxDataPoints) {
-            chart.data.labels.shift();
-            chart.data.datasets[0].data.shift();
-            chart.data.datasets[1].data.shift();
+          const lastIndex = chart.data.labels.length - 1;
+          const lastLabel = chart.data.labels[lastIndex];
+
+          if (lastLabel === timeLabel) {
+             // OVERWRITE last point (Dancing Edge)
+             chart.data.datasets[0].data[lastIndex] = data.fill_percent;
+          } else {
+             // NEW MINUTE -> Add new point
+             chart.data.labels.push(timeLabel);
+             chart.data.datasets[0].data.push(data.fill_percent);
+             
+             if (chart.data.labels.length > MAX_CHART_POINTS) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+             }
           }
           chart.update();
         }
 
+        // C. TABLE LOGIC (Includes Gas)
         const table = document.getElementById('history-table');
         const row = table.insertRow(0);
         
@@ -335,12 +346,12 @@
         const gasText = (gasRaw > GAS_LIMIT) ? "HIGH ⚠️" : "LOW";
 
         row.innerHTML = `
-          <td style="color: #94a3b8;">${new Date(data.created_at).toLocaleString()}</td>
+          <td style="color: #94a3b8;">${dateObj.toLocaleTimeString()}</td>
           <td><b>${data.fill_percent}%</b></td>
           <td><span class="status-pill ${statusClass}">${statusText}</span></td>
           <td>${gasText}</td>
         `;
-        if (table.rows.length > 20) table.deleteRow(20);
+        if (table.rows.length > 50) table.deleteRow(50);
       }
 
       window.refreshData = function() {
@@ -349,7 +360,6 @@
         if(chart) {
             chart.data.labels = []; 
             chart.data.datasets[0].data = []; 
-            chart.data.datasets[1].data = [];
             chart.update();
         }
         load();
@@ -362,12 +372,29 @@
         .subscribe();
 
       async function load() {
-        const { data } = await _supabase.from('readings').select('*').order('created_at', {ascending:false}).limit(15);
+        const { data } = await _supabase.from('readings').select('*').order('created_at', {ascending:false}).limit(1000);
         
         if (data) {
-          const reversedData = [...data].reverse();
-          reversedData.forEach(d => updateDashboard(d));
-          log("Data loaded successfully.");
+          const reversedData = [...data].reverse(); 
+          
+          const seenMinutes = new Set();
+          const filteredData = [];
+
+          reversedData.forEach((d) => {
+             const dDate = new Date(d.created_at);
+             const minuteKey = dDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+             
+             if (!seenMinutes.has(minuteKey)) {
+                 filteredData.push(d);
+                 seenMinutes.add(minuteKey);
+             }
+             else {
+                 filteredData[filteredData.length - 1] = d; 
+             }
+          });
+
+          filteredData.forEach(d => updateDashboard(d));
+          log("Data loaded (Fill Only on Chart).");
         }
       }
       load();
