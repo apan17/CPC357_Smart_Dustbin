@@ -78,6 +78,3 @@ The following components are required to build the physical prototype:
 3.  Deploy this folder to Vercel (or any static site host) by importing the Git repository or using the Vercel CLI.
 
 ---
-
-## 📜 License
-This project is open-source and available under the [MIT License](LICENSE).
