@@ -1,4 +1,4 @@
-# IoT Smart Dustbin Monitor
+# Smart Bin Monitor
 
 This repository contains the complete source code for the "Smart Dustbin Monitor" IoT project. The system transforms a standard dustbin into a smart city asset by providing real-time monitoring of fill levels, hazardous gas detection, GPS location tracking, and automated touchless lid operation.
 
@@ -32,14 +32,14 @@ The following components are required to build the physical prototype:
 
 * **Microcontroller:** Cytron Maker Feather AIoT S3 (ESP32-S3)
 * **Sensors:**
-    * HC-SR04 Ultrasonic Sensor (Fill Level)
+    * HC-SR04 Ultrasonic Sensor (Bin Level)
     * MQ-2 or MQ-135 Gas Sensor (Air Quality)
-    * HC-SR501 PIR Motion Sensor (Presence Detection)
+    * HC-SR501 PIR Motion Sensor (Motion Detection)
     * NEO-6M GPS Module (Location)
 * **Actuators:**
-    * SG90 or MG996R Servo Motor (Lid Mechanism)
+    * SG90 Servo Motor (Lid Mechanism)
     * I2C LCD 16x2 Display (Status Output)
-* **Power:** USB Cable & Power Source (e.g., Power Bank)
+* **Power:** USB Cable & Power Source (Power Bank, Battery)
 
 ---
 
@@ -47,7 +47,7 @@ The following components are required to build the physical prototype:
 
 ### 1. Hardware Setup (Arduino IDE)
 1.  Navigate to the `arduino_code/` folder.
-2.  Open `smart_dustbin.ino` in the Arduino IDE.
+2.  Open `CAT402_Smart_Dustbina-Wifi.ino` in the Arduino IDE.
 3.  Install required libraries via the Library Manager:
     * `PubSubClient` (for MQTT)
     * `TinyGPSPlus` (for GPS)
@@ -57,7 +57,7 @@ The following components are required to build the physical prototype:
 5.  Select the correct board and port, then upload the code to your ESP32-S3.
 
 ### 2. Cloud Bridge Setup (Python)
-1.  Navigate to the `cloud_bridge/` folder on your server (e.g., Google Cloud VM).
+1.  Navigate to the `cloud_bridge/` folder on your server (Google Cloud VM).
 2.  Install the required Python dependencies:
     ```bash
     pip install -r requirements.txt
