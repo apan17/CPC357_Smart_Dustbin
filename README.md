@@ -29,7 +29,7 @@ The system follows a 5-layer IoT architecture, enabling robust data flow from th
 
 ## 🛠️ Hardware Checklist
 
-![Hardware Installation Setup](CAT402_Smart_Dustbina-Wifi/images/hardware_installation.png)
+![Hardware Installation Setup](CPC357_Smart_Dustbin_Wifi/images/hardware_installation.png)
 
 
 The following components are required to build the physical prototype:
